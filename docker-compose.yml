@@ -1,0 +1,70 @@
+version: '3'
+services:
+    site:
+        build:
+            context: ./docker
+            dockerfile: nginx.dockerfile
+            args:
+                - UID=${UID:-1000}
+                - GID=${GID:-1000}
+        container_name: nginx
+        ports:
+            - "8000:80"
+        volumes:
+            - ./:/var/www/html:delegated
+        depends_on:
+            - php
+            - mysql
+        networks:
+            - mynet_case_network
+
+    mysql:
+        image: mariadb:10.6
+        container_name: mysql
+        restart: unless-stopped
+        tty: true
+        ports:
+            - "3306:3306"
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: secret
+            SERVICE_TAGS: dev
+            SERVICE_NAME: mysql
+        networks:
+            - mynet_case_network
+
+    php:
+        build:
+            context: ./docker
+            dockerfile: php.dockerfile
+            args:
+                - UID=${UID:-1000}
+                - GID=${GID:-1000}
+        container_name: php
+        volumes:
+            - ./:/var/www/html:delegated
+        networks:
+            - mynet_case_network
+        depends_on:
+            - mysql
+    artisan:
+        build:
+            context: ./docker
+            dockerfile: php.dockerfile
+            args:
+                - UID=${UID:-1000}
+                - GID=${GID:-1000}
+        container_name: artisan
+        volumes:
+            - ./:/var/www/html:delegated
+        depends_on:
+            - mysql
+        working_dir: /var/www/html
+        entrypoint: [ 'php', '/var/www/html/artisan' ]
+        networks:
+            - mynet_case_network
+networks:
+    mynet_case_network:
+        driver: "bridge"
